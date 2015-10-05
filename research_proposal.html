@@ -1,0 +1,83 @@
+<html>
+  <head>
+    <title>The Glasperlenspiel Universal Interface Abstract Definition</title>
+  </head>
+  <body>
+    <h1>The Glasperlenspiel Universal Interface</h1>
+    <p><b>A proposal for a new approach to human-computer interfaces</b></p>
+    <p><i>Lukas Sei&szlig;, Wei&szlig;enbrunn&mdash;Berlin, 5th of October 2015</i></p>
+    <p>The idea proposed here is the result of a long and mostly conceptual research in user interface design over the last years that I started as I was increasingly dissatisfied by modern interfaces used at home and in hospitals. I recently graduated from Medical School and I had to spend long hours looking at the user interfaces in hospitals during the last years and I also have a background in programming so I have the perspective of both the user and the developer here.</p>
+    <p>I very recently discovered a strange new concept that I would like to share with you for a number of reasons: First, I'd like to know if anything like this has ever been attempted and maybe failed. I have every intention of writing such a system and I'd like to learn from the experience of others. Second, if it is indeed a new idea, and I believe it is because in a year of research on the topic of user interface design I never encountered such a system, I want to make the idea public as soon as possible to prevent some non-free software producing entity to have the same idea and patent it while I still struggle with the prototype. If you think I should publish it on someplace else than this mailing list, for that purpose, please let me know.</p>
+    <p>Also I'm not a professional developer, just a hobbyist, and so far just did the research on my own. By taking a free software approach I hope there could be a open discussion of the ideas presented here. I'll publish my thoughts on how to design the first implementation and the code I produce on a public git archive shortly.</p>
+    <p>Any feedback is welcome.</p>
+    
+    <h2>Abstract</h2>
+    <p>The goal is to write a system that is capable of displaying every kind of data and manipulating it in every way the user wishes&mdash;and hopefully in a coherent way. That is of course impossible as different kinds of data need different interfaces and we all know that you have to write a new interface for every single purpose. It is a well known fact in interface design that there is no "perfect universal interface".</p>
+    <p>But what if we could break down the data to atoms that can be easily rendered by a series of abstractions like we do all the time in computer languages? After all, most types of data really are just collections of other types of data. Those abstractions could be collectively written and shared in the spirit of the free software movement resulting in the best possible concrete approximation of the the stated abstract goal.</p>
+      
+    <h2>Introduction</h2>
+    <p>The universal interface is a system that allows arbitrary type-checked combination of procedures (functions, binary programs...) and data (a shared RDF store, a personal RDF store, traditional files) and is able to produce a meaningful visual language that represents the concerning data and procedures to the user.<p>
+    <p>That sounds like a ridiculously huge goal but please consider that the command line of a POSIX system or the windowing user interface of modern operating systems actually do provide the described service. The novelty of the approach presented here is the means of how the graphical interface is constructed.</p>
+    <p>The approach presented here stems on the observation that the RDF data model allows to build a data store for all the structured data you want to process as all kinds of data can be projected to a semantic graph&mdash;with the exception of images and binary data of any kind that needs to be processed by special purpose software. But those will be representable as a URL and/or hash value inside the data-graph. Of course there are numerous other means of representing all kinds of structured data but RDF seams quite fit for the purpose and many converters for all kinds of data to RDF already exist so I use it here as an example. The problem with the graph is of course that if we just render it as a graph with nodes and edges we will produce a image that is enourmously large and impossible to comprehend. So, I propose the following.</p>
+    <h2>Recursive Layout Procedure</h2>
+    <p>The idea is to display the data as follows:
+      The recursive procedure <code>layout (URL, size, [layouter])</code> is called for a data URL we want to display. We know the position (x, y) on the screen already and we pass to the layout procedure the URL we want to display and the size of screen area we have for it. The <code>layouter</code> is optional and a certain type of procedure (see below).</p>
+    <p>We call a <i>layouter</i> a procedure that can return a layout for a specific type of data in a standardized way. If there is no user-defined layouter the <code>layout</code> procedure will try to find and call (<code>eval/apply</code> in LISP/Scheme or another scripting language, or a binary) the best suitable layouter based on simple semantic reasoning on the type of data the URL represents. For example, an URL could be of a RDFS-class &ldquo;person&rdquo;, in wich case a procedure to display a person will be loaded (this will have to be present on your distribution, but please assume for a moment we have it). If no suitable layouter is found a generic layouter will be called (just displaying the RDF-Connections in sequential order using <i>Dublin Core : Label</i>-tags where possible). If the given size is too small <code>layout</code> will just return a symbol of the URL (which can be clicked on to reveal more information).</p>
+    <p>The layouter returns <i>atoms of the layout</i> and <i>URLs</i> (with optionally specified layouters). Each atom and URL has a position and size.</p>
+    <h3>Atoms of the layout:</h3>
+    <ul>
+        <li>Symbols: For example <4 unicode characters and a 
+            color&mdash;optionally also a image. For each URL we will
+            compute a symbol&mdash;if none is specified&mdash;based
+            on the RDFS class. Data types will replace file types after all.</li>
+	<li>Text</li>
+	<li>URL of an image</li>
+	<li>2D framebuffer (dynamic images, any X window, video)</li>
+	<li>Boxes: They can contain lists of all possible atoms of the
+            interface, including boxes. They can be rendered as
+            sequential lists, a flexible box layout or as a box containing 
+            the atoms according to the
+            coordinates produced by a procedure (or by hand), resulting in
+            a free-form drawing area.</li>
+    </ul>
+    <p>For each returned URL <code>layout(URL, size)</code> will be called again.</p>
+    <p>The recursive procedure described here is the heart of the new approach which I have called the &ldquo;Glasperlenspiel&rdquo;. It will break down the data into displayable atoms with a size and position attribute. The recursive procedure stops if there is no screen space left or no data to be displayed any more. The beauty of this approach is that individual layouter procedures do not have to care about how to display all data they want to display. When it is not desirable to specify a behaviour it can leave that to the layouters of the individual parts of its data. For example the <i>person</i> layouter might call an <i>adress</i> layouter that displays an adress as text or if there is screen-space left also as a map. This <i>adrdress</i>-layouter can be called by other layouters souch as <i>shop</i>, <i>institution</i>, <i>cafe</i> etc. So we can build a layout based on abstract definitions of layouters that build on other layouters.</p>
+    <p><b>Note:</b>This looks a bit like a LISP-parser, i.e. the approach presended here resembles a 2D typographical language of boxes that contain boxes and atoms&mdash;and therefore a given layout result can be serialized as a tree in a standardizable way.</p>
+    <p>Ffirst abstract definition of the function in pseudocode:<br>
+      <pre>
+define layout (node_URL, size (width, height), pos (x, y))
+(
+ let layout_list (eval (select_layouter (URL, size)))
+   foreach l in layout_list
+     if atom? l
+       display l
+     else
+       layout l  
+)
+      </pre>
+    </p>
+    <h2>Rendering</h2>  
+    <p>The typographical projection of our data forms a tree which can be serialized and standardized. The actual rendering could be performed by a renderer suitable for your system. It could be either a nice Cairo/Pango screen layout (with the ability to include arbitrary X windows), ncurses or javascript in a webbrowser. Each renderer will have certain advantages and disadvantages that can be made transparent to and reflected by the layouter-procedures. If we look a bit into the future the implementations could include natural language SQL to find data, 3D space, braille displays and a whole lot more, the approach presented here is not limited to a 2D screen. The implementation for a 2D-screen will be called the typographical one.</p>
+
+    <h2>Manipulation of data</h2>
+    <p>Because the data is present in a system-wide database we can manipulate it by any procedure or program that we grant access to that database. In particular, we will define small procedures for each action we want to perform. Those <i>actors</i> will be classified in the RDF graph itself so that we can display menus and symbols for actions depending on context (for example if the user selects a certain URL-Symbol the suitable actions for the RDFS-Classes of that symbol will be displayed).</p>
+    <p>This would result in a highly modular system that can handle all kinds of data and combination of that data. It also will eliminate the need to switch between applications and load, save and then load the data again in a different application. One could for example have a set of actions to manipulate pixel data with multiple versions of the brush function that can be modified and shared between users.</p>
+
+    <h2>Finding data</h2>
+    If the data is stored in RDF already we can define concepts like &ldquo;inbox&rdquo; easily in SPARQL. For mor complicated queries we will write small procedures. Like actors these <i>filters</i> can be classified using RDF and made accessible to the user by menus, by loading something as a default on a home screen etc. They may be tied to a specific layouter or leave that selection to the system or the user.
+
+    <h2>Discussion</h2>
+    <p>In my opinion such a hypothetical system has some advantages over traditional window-based and web-based applications:
+    </p>
+    <p>From the <b>user's</b> point of view the system is more usable because data can be reused and rearranged in virtual all combinations. One doesn't have to &ldquo;switch applications&rdquo; any more. For example if you click on an image in a formated text document the system will display the commands to modify the image <i>just in that place</i> where the image is in the text. Actually such a system has been developed by Jef Raskin, it is called the &ldquo;Canon Cat&rdquo; and described at length in his book &ldquo;The Humane Interface&rdquo;. But the Canon Cat lacked the possibillity to handle all kinds of Data. It could only perform a limited set of pre-build actions and it had no paradigm like RDF to handle differnt kinds of structured data. Also object-oriented GUI systems like NextStep (GNUStep) provide the possibility to re-use parts of the UI. I think of the new approach as of pushing this concept to the extreme.</p>
+<p>The the system proposed here is also highly configurable as a whole, not just individual applications like today, and hopefully still consistent as a whole&mdash;this is a emergent property beacuse it is conceptualized on a higher level of abstraction than the traditional ones. Everyone can set his own prefererred layouters and actions. After all, each user has her own unique needs. For example in a hospital setting we will have doctors, nurses and other staff will have interface tailored to their needs (and the different speciality branches in the hospital will want to have individual interfaces too) drawing from a shared set of abstractions of patients and medical data. If we define the <code>size</code> not in pixel but in characters we can have a user defined base font size for the whole system, which will be nice for visually impaired people. And finally because the layouters are defined for different sizes it will be easy to deploy the system to platforms with different screen sizes ("mobile").</p>
+    <p>From the <b>developer's</b> point of view it will be easier and faster to write applications to display special data because one can draw from a wide array of existing functions for the sub-structures your data consists of. If one invents a new distributed communication protocol for instance, one could just put the data into the store and let the layouters for chat or messages that already exist do thier job. You could write whole new applications without ever having to write a interface if the data used by your application is already layoutable by the system. After all some developers hate developing interfaces, so they can leave that job to other developers that like it now.</p>
+<p> Also I expect the difference between the developer and the user to blurr increasingly. If the user can easily configure the system by selecting and rearranging layouters and actors he is in fact acting as some kind of developer. Another hint in this direction is maybe that when I imagine the system described here it it looks a bit like the morphic UI for the smalltalk system that was designed to teach people programming.</p>
+    <p>If we allow that a layouter can be any existing traditional X window application that takes a URL as an argument (or by writing a small wrapper it can be all kinds of applications) the system would be backward compatible comparable to a Window User Interface that is backward compatible to the text terminal by displaying a terminal emulator. So for data that we don't have a layouter (yet) in the Glasperlenspiel System we always can fallback to the traditional application. This will only be easily possible on a GNU/Linux System as the GUI has to mimic a window manager for the layout-boxes that contain X windows. </p>
+    <p>The complexity of writing a first version of the system can then be further reduced by using existing applications for specific purposes. For example in each case the user wants to edit text we could display the user's favourite text editor eliminating the need to write a sophisticated text input widget and still have all the advantages of an editor like emacs in every place you enter text.</p>
+    <h2>Conclusion</h2>
+    <p>The system will of course be impossible to build by writing it from scratch. But I think it may be possible to use existing free software like a programmable tiling window manager, a RDF library, a script language interpreter, a graphical toolkit etc. to write a first version it in a reasonable timeframe. Because it will be a patchwork of existing software that will result in a system that allows for an even bigger patchwork of small programs to be build I could think of no better place to announce the start of development than the mailing list of the GNU system itself.</p>
+    <p>I'm unable to list the numerous fine persons that inspired this idea here so instead I want to dedicate this essay to Olia Lialina and Walter Benjamin, who do not know me but I see in their work a expression of somemething similar only in a different language. I hope they wouldn't mind.</p> 
+    <br>
+<p>Best,<br>
+Lukas 
